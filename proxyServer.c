@@ -10,13 +10,12 @@
 
 int main(int argc, char *argv[])
 {
-	int server_fd, new_socket,valread; 
-    struct sockaddr_in address; 
+    int server_fd, new_socket,valread; 
+    struct sockaddr_in address;
     int opt = 1; 
     int addrlen = sizeof(address); 
     char buffer[1024] = {0};
        
-    // Creating socket file descriptor 
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) 
     { 
         perror("socket failed"); 
@@ -39,37 +38,47 @@ int main(int argc, char *argv[])
         perror("bind failed"); 
         exit(EXIT_FAILURE); 
     } 
+
     if (listen(server_fd, 3) < 0) 
     { 
         perror("listen"); 
         exit(EXIT_FAILURE); 
-    } 
+    };
     if ((new_socket = accept(server_fd, (struct sockaddr *)&address,  
-                       (socklen_t*)&addrlen))<0) 
+                       (socklen_t*)&addrlen)) < 0) 
     { 
         perror("accept"); 
         exit(EXIT_FAILURE); 
     }
 
 	valread = read(new_socket , buffer, 1024);
-    int i=0,flag=0;     
+    int i=0,j=0,flag=0;     
     for(i=0;i<valread;i++)
     {
     	if(buffer[i]=='*')
-		      break;
+			break;
     }
-    char s[i],port[valread-i-1];
+    for(j=i+1;i<valread;j++)
+    {
+    	if(buffer[j]=='*')
+			break;
+    }
+    char server_address[i+1],port_number[j-i],search[valread-j];
     
     for(int k=0;k<i;k++)
-        s[k]=buffer[k];
+        server_address[k]=buffer[k];
     
-    for(int k=i+1;k<valread;k++)
-        port[k-i-1]=buffer[k];
-    
-    s[i]='\0';
-    port[valread-i-1]='\0';
+    for(int k=i+1;k<j;k++)
+        port_number[k-i-1]=buffer[k];
 
-	FILE *fp;
+    for(int k=j+1;k<valread;k++)
+        search[k-j-1]=buffer[k];
+    
+    server_address[i]='\0';
+    port_number[j-i-1]='\0';
+    search[valread-j-1]='\0';
+
+    FILE *fp;
     fp = fopen("cache.txt", "r");
     if(!fp) 
     {
@@ -90,11 +99,11 @@ int main(int argc, char *argv[])
     }
     fclose(fp);
 	
-	if((int)s[0]<=57&&(int)s[0]>=48)
+	if((int)search[0]<=57&&(int)search[0]>=48)
 	{
 		for(i=0;i<3;i++)
 		{	
-			if(strcmp(s,ip_address[i])==0)
+			if(strcmp(search,ip_address[i])==0)
 			{
 				flag=1;
 				send(new_socket , domain_name[i] , strlen(domain_name[i]) , 0 );
@@ -105,73 +114,76 @@ int main(int argc, char *argv[])
 	{
 		for(i=0;i<3;i++)
 		{
-			if(strcmp(s,domain_name[i])==0)
+			if(strcmp(search,domain_name[i])==0)
 			{
 				flag=1;
 				send(new_socket , ip_address[i] , strlen(ip_address[i]) , 0 );
 			}
 		}
 	}
+
+
 	if(!flag)
 	{
-		int sock = 0, valread; 
+	    int sock = 0, valread; 
 	    struct sockaddr_in serv_addr; 
-	    char *hello = "Hello from client"; 
 	    char buffer[1024] = {0}; 
 	    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
 	    { 
 	        printf("\n Socket creation error \n"); 
 	        return -1; 
 	    } 
-	   
 	    serv_addr.sin_family = AF_INET; 
-	    serv_addr.sin_port = htons(atoi(port)); 
+	    serv_addr.sin_port = htons(atoi("8000")); 
 	       
-	    // Convert IPv4 and IPv6 addresses from text to binary form 
-	    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0)  
+	    if(inet_pton(AF_INET, server_address, &serv_addr.sin_addr.s_addr)<=0)  
 	    { 
 	        printf("\nInvalid address/ Address not supported \n"); 
 	        return -1; 
-	    } 
-	   
+	    }
 	    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
 	    { 
 	        printf("\nConnection Failed \n"); 
 	        return -1; 
 	    }
 
-		send(sock , s , strlen(s) , 0 );
-	    valread = read( sock , buffer, 1024); 
-    	printf("%s\n",buffer );
+		send(sock , search , strlen(search) , 0 );
+		valread = read( sock , buffer, 1024);  
     	char *np="entry not found in the database";
-    	if(strcmp(buffer,np)==0)
+    	
+    	send(new_socket , buffer , strlen(buffer) , 0 );
+
+    	if(strcmp(buffer,np)!=0)
     	{
     		strcpy(ip_address[0],ip_address[1]);
 			strcpy(ip_address[1],ip_address[1]);
 			strcpy(domain_name[0],domain_name[1]);
 			strcpy(domain_name[1],domain_name[2]);
-		    if((int)buffer[0]<=57&&(int)buffer[0]>=48)
-			{
-				strcpy(ip_address[2],s);
-				buffer[valread]='\0';
-				strcpy(domain_name[2],buffer);
-			}
-			else
-			{
-				strcpy(domain_name[2],s);
-				buffer[valread]='\0';
-				strcpy(ip_address[2],buffer);
-			}	
-    	}
+		if((int)buffer[0]<=57&&(int)buffer[0]>=48)
+		{
+			strcpy(ip_address[2],search);
+			buffer[valread]='\0';
+			strcpy(domain_name[2],buffer);
+		}
+		else
+		{
+			strcpy(domain_name[2],search);
+			buffer[valread]='\0';
+			strcpy(ip_address[2],buffer);
+		}
+	
 		remove("cache.txt");
 		FILE *fp1;
 		fp1=fopen("cache.txt","w");
-		for(int i=0;i<3;i++)
+		for(int i=0;i<2;i++)
 		{
 		 	fprintf(fp1,"%s ",ip_address[i]);
 		 	fprintf(fp1,"%s\n",domain_name[i]);
 		}
+		fprintf(fp1,"%s ",domain_name[2]);
+		fprintf(fp1,"%s\n",ip_address[2]);
 		fclose(fp1);
+	}
 	}
 	return 0;
 } 
