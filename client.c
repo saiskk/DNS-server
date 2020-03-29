@@ -31,14 +31,29 @@ int main(int argc, char *argv[])
     { 
         printf("\nConnection Failed \n"); 
         return -1; 
-    } 
+    }
+    char *np="entry not found in the database";
+    char s[100]; 
     printf("Enter the domain or ip address:\n");
+    scanf("%s",s);
+    
     send(sock , argv[1] , strlen(argv[1]) , 0 );
     send(sock , "*" , 1 , 0 );
     send(sock , argv[2] , strlen(argv[2]) , 0 );
     send(sock , "*" , 1 , 0 );
-    send(sock , argv[3] , strlen(argv[3]) , 0 );  
-    valread = read( sock , buffer, 1024); 
-    printf("%s\n", buffer ); 
+    send(sock , s , strlen(s) , 0 );  
+    
+
+    valread = read( sock , buffer, 1024);
+    if(strcmp(buffer,np)!=0)
+    {
+        if((int)s[0]<=57&&(int)s[0]>=48)
+            printf("The domain name of %s is %s\n",s,buffer);
+        else
+            printf("The IP Address of %s is %s\n",s,buffer);
+    }
+    else
+        printf("%s\n",np);
+
     return 0; 
 } 
